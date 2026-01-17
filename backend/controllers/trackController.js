@@ -1,5 +1,6 @@
 import Track from '../models/Track.js';
-import { cloudinary } from '../config/cloudinary.js';
+// FIXED: Import cloudinary from the middleware file we created
+import { cloudinary } from '../middleware/upload.js'; 
 
 // 1. GET ALL TRACKS
 export const getAllTracks = async (req, res) => {
@@ -14,6 +15,7 @@ export const getAllTracks = async (req, res) => {
 // 2. UPLOAD TRACK
 export const createTrack = async (req, res) => {
   try {
+    // Note: These names 'audio' and 'cover' must match your Routes and Frontend FormData exactly
     if (!req.files || !req.files['audio'] || !req.files['cover']) {
       return res.status(400).json({ error: "Audio and Cover image are required" });
     }
@@ -26,7 +28,10 @@ export const createTrack = async (req, res) => {
       artist: req.body.artist,
       duration: req.body.duration || 0,
       
-      // Cloudinary returns 'path' as the secure URL
+      // Initial Play Count (Important for Top Charts)
+      playCount: 0, 
+
+      // Cloudinary Data
       audio: {
         url: audioFile.path, 
         public_id: audioFile.filename
@@ -35,9 +40,10 @@ export const createTrack = async (req, res) => {
         url: coverFile.path,
         public_id: coverFile.filename
       },
+      // Optional Theme Colors
       theme: {
-        primary: req.body.themePrimary,
-        secondary: req.body.themeSecondary
+        primary: req.body.themePrimary || "#ffffff",
+        secondary: req.body.themeSecondary || "#000000"
       }
     });
 
@@ -56,11 +62,11 @@ export const deleteTrack = async (req, res) => {
     if (!track) return res.status(404).json({ error: "Track not found" });
 
     // Delete assets from Cloudinary
-    if (track.coverImage.public_id) {
+    if (track.coverImage && track.coverImage.public_id) {
         await cloudinary.uploader.destroy(track.coverImage.public_id);
     }
-    if (track.audio.public_id) {
-        // Audio is stored as 'video' resource_type in Cloudinary
+    if (track.audio && track.audio.public_id) {
+        // Audio uses 'video' resource_type in Cloudinary
         await cloudinary.uploader.destroy(track.audio.public_id, { resource_type: 'video' });
     }
 
@@ -78,7 +84,7 @@ export const playTrack = async (req, res) => {
   try {
     const track = await Track.findByIdAndUpdate(
       req.params.id,
-      { $inc: { plays: 1 } }, // Increment plays by 1
+      { $inc: { playCount: 1 } }, // FIXED: Changed 'plays' to 'playCount' to match frontend
       { new: true }
     );
     res.json(track);

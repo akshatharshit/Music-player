@@ -1,9 +1,8 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { uploadNewSong } from "../redux/audioSlice";
-import { UploadCloud, Music, Image as ImageIcon, X, Loader2, ArrowLeft } from "lucide-react";
-
+import { UploadCloud, Music, Image as ImageIcon, Loader2, ArrowLeft } from "lucide-react";
 
 export default function AddSong() {
   const dispatch = useDispatch();
@@ -25,6 +24,13 @@ export default function AddSong() {
     genre: "Pop"
   });
 
+  // Cleanup preview URL to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
+    };
+  }, [previewUrl]);
+
   // --- HANDLERS ---
   const handleDrag = (e) => {
     e.preventDefault();
@@ -45,8 +51,7 @@ export default function AddSong() {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith("audio/")) {
         setAudioFile(file);
-        // Auto-fill title from filename
-        const name = file.name.replace(/\.[^/.]+$/, ""); // remove extension
+        const name = file.name.replace(/\.[^/.]+$/, ""); 
         setFormData(prev => ({ ...prev, title: name }));
       } else {
         alert("Please drop an audio file (MP3, WAV)");
@@ -57,6 +62,7 @@ export default function AddSong() {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
     if (file) {
+      if (previewUrl) URL.revokeObjectURL(previewUrl);
       setCoverFile(file);
       setPreviewUrl(URL.createObjectURL(file));
     }
@@ -65,28 +71,32 @@ export default function AddSong() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!audioFile || !formData.title || !formData.artist) {
-      alert("Please fill in required fields and upload an audio file.");
+      alert("Please fill in required fields (Title, Artist) and upload an audio file.");
       return;
     }
 
     setLoading(true);
 
-    // Create FormData object to send files
+    // 1. Prepare FormData
     const data = new FormData();
     data.append("title", formData.title);
     data.append("artist", formData.artist);
-    data.append("album", formData.album);
+    data.append("album", formData.album || "");
     data.append("genre", formData.genre);
-    data.append("audio", audioFile); // The key 'audio' must match your backend Multer config
-    if (coverFile) data.append("cover", coverFile);
+    
+    // 2. These keys MUST match your backend: upload.fields([{ name: 'audio' }, { name: 'cover' }])
+    data.append("audio", audioFile); 
+    if (coverFile) {
+      data.append("cover", coverFile);
+    }
 
     try {
+      // 3. Dispatch to Redux and unwrap to catch errors here
       await dispatch(uploadNewSong(data)).unwrap();
-      // On success:
-      navigate("/"); // Go back to Dashboard
+      navigate("/"); 
     } catch (err) {
-      console.error(err);
-      alert("Upload failed. Check console.");
+      console.error("Upload Error:", err);
+      alert(err.message || "Upload failed. Check your connection or file size.");
     } finally {
       setLoading(false);
     }
@@ -188,7 +198,6 @@ export default function AddSong() {
                   ) : (
                     <ImageIcon className="text-gray-500 group-hover:text-violet-400" />
                   )}
-                  {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <span className="text-[10px] font-bold">CHANGE</span>
                   </div>

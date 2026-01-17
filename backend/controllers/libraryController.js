@@ -1,46 +1,59 @@
 import Library from '../models/Library.js';
 
-// 1. CREATE A NEW LIBRARY (Updated to accept songs & description)
+// 1. CREATE A NEW LIBRARY (Fixed for JSON payloads)
 export const createLibrary = async (req, res) => {
   try {
-    // Destructure all fields from the request
-    const { name, creator, coverUrl, description, songs } = req.body;
+    const { name, creator, description, songs } = req.body;
 
+    // Logic: If you EVER decide to add a cover upload later, keep req.file check
+    // But for now, we'll handle the JSON 'songs' array directly
+    let coverUrl = "https://via.placeholder.com/150"; 
+    if (req.file) {
+      coverUrl = req.file.path; 
+    }
+
+    // Since we are sending JSON from the frontend, 'songs' is already an array.
+    // We don't need JSON.parse() unless you are using FormData.
     const newLib = new Library({
       name: name,
       creator: creator || "Anonymous",
       coverUrl: coverUrl,
-      description: description || "", // Save description
-      songs: songs || []            // Save selected songs (or empty array)
+      description: description || "",
+      songs: Array.isArray(songs) ? songs : [] 
     });
     
     await newLib.save();
+    
+    // Pro-tip: Populate immediately so the frontend has the song data
+    await newLib.populate('songs');
+    
     res.status(201).json(newLib);
+
   } catch (err) {
-    console.error(err);
+    console.error("Create Library Error:", err);
     res.status(500).json({ error: "Could not create library" });
   }
 };
 
-// 2. GET ALL LIBRARIES (Just the summaries)
+// 2. GET ALL LIBRARIES
 export const getAllLibraries = async (req, res) => {
   try {
-    const libs = await Library.find().sort({ visits: -1 }); // Most visited first
+    // Sorting by visits helps show 'Trending' playlists
+    const libs = await Library.find().sort({ visits: -1 });
     res.json(libs);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// 3. GET ONE LIBRARY (And increment visits)
+// 3. GET ONE LIBRARY (With Populated Songs)
 export const getLibraryById = async (req, res) => {
   try {
-    // A. Find and update visit count
     const library = await Library.findByIdAndUpdate(
       req.params.id,
-      { $inc: { visits: 1 } },
+      { $inc: { visits: 1 } }, // Tracking popularity
       { new: true }
-    ).populate('songs'); // <--- CRITICAL: This turns song IDs into full song objects
+    ).populate('songs'); 
 
     if (!library) return res.status(404).json({ error: "Library not found" });
 
@@ -66,10 +79,9 @@ export const addSongToLibrary = async (req, res) => {
     library.songs.push(songId);
     await library.save();
     
-    // Optional: Populate the songs before returning so the UI updates instantly with details
     await library.populate('songs');
-
     res.json(library);
+
   } catch (err) {
     res.status(500).json({ error: "Could not add song" });
   }

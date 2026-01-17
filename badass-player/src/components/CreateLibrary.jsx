@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { createNewLibrary } from "../redux/librarySlice";
-import { getTracks } from "../redux/audioSlice"; // Import to fetch songs
-import { ArrowLeft, Disc, Sparkles, User, CheckCircle2, Search, ArrowRight, Music, Plus, Check } from "lucide-react";
+import { getTracks } from "../redux/audioSlice"; 
+import { ArrowLeft, Disc, Sparkles, User, CheckCircle2, Search, ArrowRight, Music, Check, Loader2 } from "lucide-react";
 
 export default function CreateLibrary() {
   const dispatch = useDispatch();
@@ -11,51 +11,46 @@ export default function CreateLibrary() {
   
   // Redux State
   const { loading: libLoading } = useSelector((state) => state.library);
-  const { tracks } = useSelector((state) => state.audio);
+  const { tracks = [] } = useSelector((state) => state.audio); // Default to empty array
 
   // Local State
-  const [step, setStep] = useState(1); // Step 1: Details, Step 2: Select Songs
+  const [step, setStep] = useState(1); 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [selectedSongs, setSelectedSongs] = useState([]); // Array of song IDs
+  const [selectedSongs, setSelectedSongs] = useState([]); 
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch songs when page loads so we can select them
   useEffect(() => {
     dispatch(getTracks());
   }, [dispatch]);
 
-  // Handle toggling a song selection
   const toggleSong = (songId) => {
     setSelectedSongs(prev => 
       prev.includes(songId) 
-        ? prev.filter(id => id !== songId) // Remove
-        : [...prev, songId] // Add
+        ? prev.filter(id => id !== songId) 
+        : [...prev, songId] 
     );
   };
 
-  // Filter songs for search
   const filteredSongs = tracks.filter(t => 
-    t.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    t.artist.toLowerCase().includes(searchTerm.toLowerCase())
+    t.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    t.artist?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || libLoading) return;
 
     try {
-      // We pass 'songs' (array of IDs) along with name and creator
       const payload = {
-        name,
-        description,
-        creator: "Me",
-        songs: selectedSongs // <--- Sending selected songs to backend
+        name: name.trim(),
+        description: description.trim(),
+        creator: "Me", 
+        songs: selectedSongs 
       };
 
       const result = await dispatch(createNewLibrary(payload)).unwrap();
       
-      // Redirect to the new library page
       if (result && result._id) {
         navigate(`/library/${result._id}`);
       } else {
@@ -63,6 +58,7 @@ export default function CreateLibrary() {
       }
     } catch (err) {
       console.error("Failed to create library:", err);
+      alert(err.message || "Could not create playlist. Please try again.");
     }
   };
 
@@ -78,9 +74,9 @@ export default function CreateLibrary() {
         {/* LEFT SIDE: WIZARD */}
         <div className="animate-fade-in-up bg-[#121212] border border-white/5 p-8 rounded-3xl shadow-xl min-h-[500px] flex flex-col">
           
-          {/* Header & Back Button */}
           <div className="flex items-center justify-between mb-6">
             <button 
+              type="button"
               onClick={() => step === 2 ? setStep(1) : navigate(-1)} 
               className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors"
             >
@@ -91,7 +87,6 @@ export default function CreateLibrary() {
             </div>
           </div>
 
-          {/* STEP 1: DETAILS */}
           {step === 1 && (
             <div className="flex-1 flex flex-col">
               <h1 className="text-3xl font-bold mb-2">New Collection</h1>
@@ -123,6 +118,7 @@ export default function CreateLibrary() {
               </div>
 
               <button
+                type="button"
                 onClick={() => setStep(2)}
                 disabled={!name.trim()}
                 className={`w-full py-4 mt-8 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all
@@ -137,13 +133,11 @@ export default function CreateLibrary() {
             </div>
           )}
 
-          {/* STEP 2: SELECT SONGS */}
           {step === 2 && (
             <div className="flex-1 flex flex-col h-full">
               <h1 className="text-3xl font-bold mb-2">Add Songs</h1>
               <p className="text-gray-400 mb-4">Select songs to include ({selectedSongs.length} selected)</p>
 
-              {/* Search */}
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                 <input 
@@ -155,7 +149,6 @@ export default function CreateLibrary() {
                 />
               </div>
 
-              {/* Scrollable Song List */}
               <div className="flex-1 overflow-y-auto pr-2 custom-scrollbar max-h-[300px]">
                 {filteredSongs.length > 0 ? (
                   filteredSongs.map(track => {
@@ -172,11 +165,13 @@ export default function CreateLibrary() {
                         `}
                       >
                         <div className="flex items-center gap-3 overflow-hidden">
-                          <img 
-                            src={track.coverImage?.url || "https://via.placeholder.com/40"} 
-                            className="w-10 h-10 rounded object-cover" 
-                            alt=""
-                          />
+                          <div className="w-10 h-10 rounded bg-gray-800 flex-shrink-0 flex items-center justify-center overflow-hidden">
+                            {track.coverImage?.url ? (
+                              <img src={track.coverImage.url} className="w-full h-full object-cover" alt="" />
+                            ) : (
+                              <Music size={16} className="text-gray-600" />
+                            )}
+                          </div>
                           <div className="truncate">
                             <div className={`font-medium truncate ${isSelected ? "text-pink-400" : "text-white"}`}>
                               {track.title}
@@ -197,12 +192,13 @@ export default function CreateLibrary() {
               </div>
 
               <button
+                type="button"
                 onClick={handleCreate}
                 disabled={libLoading}
-                className="w-full py-4 mt-6 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-pink-500/25 active:scale-[0.98] text-white"
+                className="w-full py-4 mt-6 rounded-xl font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg bg-gradient-to-r from-pink-500 to-rose-500 hover:shadow-pink-500/25 active:scale-[0.98] text-white disabled:opacity-50"
               >
                 {libLoading ? (
-                  <span className="animate-pulse">Creating...</span>
+                  <Loader2 className="animate-spin" size={20} />
                 ) : (
                   <>
                     <Sparkles size={20} /> Create Collection
@@ -215,28 +211,21 @@ export default function CreateLibrary() {
 
         {/* RIGHT SIDE: LIVE PREVIEW */}
         <div className="hidden md:flex flex-col items-center justify-center relative sticky top-10">
-          
           <h3 className="text-sm font-bold text-gray-500 uppercase tracking-widest mb-6">Live Preview</h3>
 
-          {/* Card Preview */}
           <div className="w-[320px] h-[400px] bg-gradient-to-br from-gray-900 to-black border border-white/10 rounded-3xl p-6 relative group overflow-hidden shadow-2xl transition-all duration-500 hover:scale-[1.02]">
-            
             <div className="relative z-10 h-full flex flex-col">
-              {/* Image */}
               <div className="w-full aspect-square bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl border border-white/5 mb-6 flex items-center justify-center overflow-hidden relative">
-                {selectedSongs.length > 0 && step === 2 ? (
-                   // Show cover of first selected song
-                   <img 
-                    src={tracks.find(t => t._id === selectedSongs[0])?.coverImage?.url} 
+                {selectedSongs.length > 0 ? (
+                  <img 
+                    src={tracks.find(t => t._id === selectedSongs[0])?.coverImage?.url || "https://via.placeholder.com/300"} 
                     className="w-full h-full object-cover opacity-80"
-                    alt=""
-                   />
+                    alt="Playlist Preview"
+                  />
                 ) : (
-                  // Default Icon
                   <Disc size={40} className="text-gray-700" />
                 )}
                 
-                {/* Overlay Text for Song Count */}
                 {selectedSongs.length > 0 && (
                   <div className="absolute bottom-2 right-2 bg-black/60 backdrop-blur-md px-2 py-1 rounded-md text-xs font-bold border border-white/10">
                     <Music size={10} className="inline mr-1"/>
@@ -245,7 +234,6 @@ export default function CreateLibrary() {
                 )}
               </div>
 
-              {/* Text Info */}
               <div className="mt-auto">
                 <h2 className={`text-2xl font-bold leading-tight truncate ${name ? 'text-white' : 'text-gray-700'}`}>
                   {name || "Untitled"}
@@ -263,17 +251,13 @@ export default function CreateLibrary() {
                 </div>
               </div>
             </div>
-            
-            {/* Glows */}
             <div className="absolute -bottom-20 -right-20 w-40 h-40 bg-pink-500/20 blur-[50px] rounded-full" />
           </div>
 
-          <div className="mt-8 flex items-center gap-2 text-green-500 text-sm opacity-0 transition-opacity duration-500" style={{ opacity: name && step === 2 ? 1 : 0 }}>
+          <div className="mt-8 flex items-center gap-2 text-green-500 text-sm transition-opacity duration-500" style={{ opacity: name && step === 2 ? 1 : 0 }}>
              <CheckCircle2 size={16} /> Ready to launch
           </div>
-
         </div>
-
       </div>
     </div>
   );

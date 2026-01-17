@@ -1,5 +1,6 @@
 import { v2 as cloudinary } from 'cloudinary';
 import { CloudinaryStorage } from 'multer-storage-cloudinary';
+import multer from 'multer'; // <--- Added this
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -13,15 +14,23 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: async (req, file) => {
-    // Check file type to determine resource_type
+    // Check if it's an audio file
     const isAudio = file.mimetype.startsWith('audio');
     
     return {
-      folder: 'music-app', // Folder in your Cloudinary Dashboard
-      resource_type: isAudio ? 'video' : 'image', // Audio is 'video' in Cloudinary
+      folder: 'music-app',
+      // Cloudinary treats Audio as 'video' resource type
+      resource_type: isAudio ? 'video' : 'image', 
       public_id: `${file.fieldname}-${Date.now()}`,
+      // Optional: Force formats to avoid errors
+      format: isAudio ? 'mp3' : 'png', 
     };
   },
 });
 
-export { cloudinary, storage };
+// Create the middleware
+const upload = multer({ storage: storage });
+
+// Export the middleware (default) and cloudinary (named)
+export default upload;
+export { cloudinary };

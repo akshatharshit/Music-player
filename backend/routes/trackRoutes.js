@@ -1,23 +1,28 @@
 import express from 'express';
-import multer from 'multer';
-import { storage } from '../config/cloudinary.js';
+// 1. Import the middleware we created (Fixes the path issue)
+import upload from '../middleware/upload.js'; 
 import * as trackController from '../controllers/trackController.js';
 
 const router = express.Router();
 
-// Initialize Multer
-const upload = multer({ storage });
-
-// Routes
+// GET all tracks
 router.get('/', trackController.getAllTracks);
 
-router.post('/', 
-  upload.fields([{ name: 'audio' }, { name: 'cover' }]), 
+// UPLOAD a new track
+// We use '/add' to be specific.
+// The keys 'audio' and 'cover' MUST match your Frontend FormData.
+router.post('/add', 
+  upload.fields([
+    { name: 'audio', maxCount: 1 }, 
+    { name: 'cover', maxCount: 1 }
+  ]), 
   trackController.createTrack
 );
 
+// DELETE a track
 router.delete('/:id', trackController.deleteTrack);
 
+// PLAY (Increment count)
 router.put('/:id/play', trackController.playTrack);
 
 export default router;
