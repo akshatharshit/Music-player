@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+body {
+  @apply bg-gray-950 text-white font-sans;
+}
+
+/* ::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: theme("colors.neon.purple");
+  border-radius: 3px;
+} */
+ 
