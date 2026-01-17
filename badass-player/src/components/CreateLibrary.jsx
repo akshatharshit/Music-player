@@ -9,21 +9,24 @@ export default function CreateLibrary() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   
-  // Redux State
+  // --- REDUX STATE ---
+  // Matches the initialState from your librarySlice ({ loading, list, ... })
   const { loading: libLoading } = useSelector((state) => state.library);
-  const { tracks = [] } = useSelector((state) => state.audio); // Default to empty array
+  const { tracks = [] } = useSelector((state) => state.audio);
 
-  // Local State
+  // --- LOCAL STATE ---
   const [step, setStep] = useState(1); 
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [selectedSongs, setSelectedSongs] = useState([]); 
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Load tracks for selection
   useEffect(() => {
     dispatch(getTracks());
   }, [dispatch]);
 
+  // Toggle song selection ID
   const toggleSong = (songId) => {
     setSelectedSongs(prev => 
       prev.includes(songId) 
@@ -32,25 +35,30 @@ export default function CreateLibrary() {
     );
   };
 
+  // Filter songs based on search
   const filteredSongs = tracks.filter(t => 
     t.title?.toLowerCase().includes(searchTerm.toLowerCase()) || 
     t.artist?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Handle Form Submission
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!name.trim() || libLoading) return;
 
     try {
+      // 1. Prepare Payload (JSON format is standard for arrays/lists)
       const payload = {
         name: name.trim(),
         description: description.trim(),
-        creator: "Me", 
-        songs: selectedSongs 
+        creator: "Me", // Optional: Backend usually handles this via token
+        songs: selectedSongs // Array of song IDs
       };
 
+      // 2. Dispatch thunk and Unwrap result
       const result = await dispatch(createNewLibrary(payload)).unwrap();
       
+      // 3. Navigate on success
       if (result && result._id) {
         navigate(`/library/${result._id}`);
       } else {
@@ -58,7 +66,8 @@ export default function CreateLibrary() {
       }
     } catch (err) {
       console.error("Failed to create library:", err);
-      alert(err.message || "Could not create playlist. Please try again.");
+      // Display error from slice rejection or default message
+      alert(err.message || typeof err === 'string' ? err : "Could not create playlist. Please try again.");
     }
   };
 

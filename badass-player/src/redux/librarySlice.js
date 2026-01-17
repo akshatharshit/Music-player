@@ -6,62 +6,65 @@ import {
   addSongToLibrary 
 } from '../services/api';
 
-// --- ASYNC THUNKS ---
+// =============================
+// THUNKS
+// =============================
 
-// 1. Fetch All Libraries
+// Fetch all libraries (playlists)
 export const getLibraries = createAsyncThunk(
   'library/getAll',
   async (_, { rejectWithValue }) => {
     try {
-      // FIXED: fetchLibraries() now returns the array directly
       const data = await fetchLibraries();
-      return data; 
+      return data;
     } catch (err) {
-      return rejectWithValue(err.response?.data || "Failed to fetch libraries");
+      return rejectWithValue(err?.response?.data || "Failed to fetch libraries");
     }
   }
 );
 
-// 2. Fetch One Library
+// Fetch a single library with populated songs
 export const getLibraryById = createAsyncThunk(
   'library/getOne',
   async (id, { rejectWithValue }) => {
     try {
       const data = await fetchLibraryDetails(id);
-      return data; 
+      return data;
     } catch (err) {
-      return rejectWithValue(err.response?.data || "Failed to load playlist");
+      return rejectWithValue(err?.response?.data || "Failed to load library");
     }
   }
 );
 
-// 3. Create New Library
+// Create new library (JSON or FormData)
 export const createNewLibrary = createAsyncThunk(
   'library/create',
   async (libraryData, { rejectWithValue }) => {
     try {
       const data = await createLibrary(libraryData);
-      return data; 
+      return data;
     } catch (err) {
-      return rejectWithValue(err.response?.data || "Creation failed");
+      return rejectWithValue(err?.response?.data || "Creation failed");
     }
   }
 );
 
-// 4. Add Song to Library
+// Add song to an existing library
 export const addSong = createAsyncThunk(
   'library/addSong',
   async ({ libraryId, songId }, { rejectWithValue }) => {
     try {
       const data = await addSongToLibrary(libraryId, songId);
-      return data; 
+      return data;
     } catch (err) {
-      return rejectWithValue(err.response?.data || "Could not add song");
+      return rejectWithValue(err?.response?.data || "Could not add song");
     }
   }
 );
 
-// --- SLICE STATE remains same ---
+// =============================
+// STATE
+// =============================
 const initialState = {
   list: [],
   activeLibrary: null,
@@ -69,6 +72,9 @@ const initialState = {
   error: null
 };
 
+// =============================
+// SLICE
+// =============================
 const librarySlice = createSlice({
   name: 'library',
   initialState,
@@ -87,12 +93,13 @@ const librarySlice = createSlice({
       })
       .addCase(getLibraries.fulfilled, (state, action) => {
         state.loading = false;
-        state.list = Array.isArray(action.payload) ? action.payload : []; // Safety check
+        state.list = Array.isArray(action.payload) ? action.payload : [];
       })
       .addCase(getLibraries.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
+
       // Fetch One
       .addCase(getLibraryById.pending, (state) => {
         state.loading = true;
@@ -105,13 +112,15 @@ const librarySlice = createSlice({
         state.loading = false;
         state.error = action.payload;
       })
-      // Create New
+
+      // Create Library
       .addCase(createNewLibrary.fulfilled, (state, action) => {
         if (action.payload) {
           state.list.unshift(action.payload);
         }
       })
-      // Add Song
+
+      // Add Song -> Update active library only
       .addCase(addSong.fulfilled, (state, action) => {
         if (state.activeLibrary && action.payload && state.activeLibrary._id === action.payload._id) {
           state.activeLibrary = action.payload;

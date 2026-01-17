@@ -51,6 +51,7 @@ export default function AddSong() {
       const file = e.dataTransfer.files[0];
       if (file.type.startsWith("audio/")) {
         setAudioFile(file);
+        // Auto-fill title from filename if empty
         const name = file.name.replace(/\.[^/.]+$/, ""); 
         setFormData(prev => ({ ...prev, title: name }));
       } else {
@@ -69,7 +70,8 @@ export default function AddSong() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    e.preventDefault(); // Prevents page reload on form submit
+    
     if (!audioFile || !formData.title || !formData.artist) {
       alert("Please fill in required fields (Title, Artist) and upload an audio file.");
       return;
@@ -84,14 +86,15 @@ export default function AddSong() {
     data.append("album", formData.album || "");
     data.append("genre", formData.genre);
     
-    // 2. These keys MUST match your backend: upload.fields([{ name: 'audio' }, { name: 'cover' }])
+    // 2. Append Files
+    // Backend expectation: upload.fields([{ name: 'audio' }, { name: 'cover' }])
     data.append("audio", audioFile); 
+    
     if (coverFile) {
       data.append("cover", coverFile);
     }
 
     try {
-      // 3. Dispatch to Redux and unwrap to catch errors here
       await dispatch(uploadNewSong(data)).unwrap();
       navigate("/"); 
     } catch (err) {
@@ -115,6 +118,7 @@ export default function AddSong() {
         {/* LEFT SIDE: DROP BOX & AUDIO */}
         <div className="md:w-1/2 p-8 bg-gradient-to-br from-gray-900 to-black border-r border-white/5 flex flex-col">
           <button 
+            type="button"
             onClick={() => navigate('/')} 
             className="flex items-center gap-2 text-gray-500 hover:text-white transition-colors mb-6 w-fit"
           >
@@ -138,12 +142,16 @@ export default function AddSong() {
             <input 
               ref={fileInputRef}
               type="file" 
+              name="audio"
               accept="audio/*" 
               className="hidden" 
               onChange={(e) => {
                 if(e.target.files[0]) {
                   setAudioFile(e.target.files[0]);
-                  setFormData(prev => ({ ...prev, title: e.target.files[0].name.replace(/\.[^/.]+$/, "") }));
+                  // Only auto-fill title if empty
+                  if (!formData.title) {
+                    setFormData(prev => ({ ...prev, title: e.target.files[0].name.replace(/\.[^/.]+$/, "") }));
+                  }
                 }
               }}
             />
@@ -155,6 +163,7 @@ export default function AddSong() {
                 </div>
                 <p className="font-medium text-green-400 truncate max-w-[200px]">{audioFile.name}</p>
                 <button 
+                  type="button"
                   onClick={(e) => { e.stopPropagation(); setAudioFile(null); }}
                   className="mt-4 text-xs text-red-400 hover:text-red-300 underline"
                 >
@@ -169,6 +178,7 @@ export default function AddSong() {
                 <p className="font-medium text-gray-300">Drag & Drop Song Here</p>
                 <p className="text-sm text-gray-500 mt-2">or</p>
                 <button 
+                  type="button"
                   onClick={() => fileInputRef.current.click()}
                   className="mt-4 px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-sm font-medium transition-all pointer-events-auto"
                 >
@@ -180,7 +190,8 @@ export default function AddSong() {
         </div>
 
         {/* RIGHT SIDE: METADATA FORM */}
-        <div className="md:w-1/2 p-8 flex flex-col justify-between">
+        {/* Changed from div to form for semantic correctness and 'Enter' key submission */}
+        <form onSubmit={handleSubmit} className="md:w-1/2 p-8 flex flex-col justify-between">
           <div>
             <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
               <span className="w-1 h-6 bg-violet-500 rounded-full"/> Track Details
@@ -205,15 +216,24 @@ export default function AddSong() {
                 <div>
                   <p className="text-sm font-medium">Cover Art</p>
                   <p className="text-xs text-gray-500">Square recommended</p>
-                  <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} />
+                  <input 
+                    ref={imageInputRef} 
+                    type="file" 
+                    name="cover"
+                    accept="image/*" 
+                    className="hidden" 
+                    onChange={handleImageChange} 
+                  />
                 </div>
               </div>
 
               {/* Text Inputs */}
               <div className="space-y-4">
                 <div className="space-y-1">
-                  <label className="text-xs font-medium text-gray-400 ml-1">Title</label>
+                  <label htmlFor="title" className="text-xs font-medium text-gray-400 ml-1">Title</label>
                   <input 
+                    id="title"
+                    name="title"
                     type="text" 
                     value={formData.title}
                     onChange={(e) => setFormData({...formData, title: e.target.value})}
@@ -224,8 +244,10 @@ export default function AddSong() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-400 ml-1">Artist</label>
+                    <label htmlFor="artist" className="text-xs font-medium text-gray-400 ml-1">Artist</label>
                     <input 
+                      id="artist"
+                      name="artist"
                       type="text" 
                       value={formData.artist}
                       onChange={(e) => setFormData({...formData, artist: e.target.value})}
@@ -234,8 +256,10 @@ export default function AddSong() {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-medium text-gray-400 ml-1">Genre</label>
+                    <label htmlFor="genre" className="text-xs font-medium text-gray-400 ml-1">Genre</label>
                     <select 
+                      id="genre"
+                      name="genre"
                       value={formData.genre}
                       onChange={(e) => setFormData({...formData, genre: e.target.value})}
                       className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-violet-500 transition-colors text-gray-300"
@@ -255,7 +279,7 @@ export default function AddSong() {
 
           {/* Submit Button */}
           <button
-            onClick={handleSubmit}
+            type="submit"
             disabled={loading || !audioFile}
             className={`w-full py-4 mt-8 rounded-xl font-bold flex items-center justify-center gap-2 transition-all
               ${loading || !audioFile 
@@ -272,7 +296,7 @@ export default function AddSong() {
               "Upload Song"
             )}
           </button>
-        </div>
+        </form>
       </div>
     </div>
   );

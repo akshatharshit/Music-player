@@ -15,7 +15,6 @@ export const getAllTracks = async (req, res) => {
 // 2. UPLOAD TRACK
 export const createTrack = async (req, res) => {
   try {
-    // Note: These names 'audio' and 'cover' must match your Routes and Frontend FormData exactly
     if (!req.files || !req.files['audio'] || !req.files['cover']) {
       return res.status(400).json({ error: "Audio and Cover image are required" });
     }
@@ -23,24 +22,47 @@ export const createTrack = async (req, res) => {
     const audioFile = req.files['audio'][0];
     const coverFile = req.files['cover'][0];
 
+    // AUDIO UPLOAD → Cloudinary treats audio as 'video' resource
+    const audioResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: "music-app/tracks",
+          resource_type: "video",
+          public_id: `audio-${Date.now()}`,
+          format: "mp3"
+        },
+        (err, data) => err ? reject(err) : resolve(data)
+      ).end(audioFile.buffer);
+    });
+
+    // COVER UPLOAD → normal image
+    const coverResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          folder: "music-app/covers",
+          resource_type: "image",
+          public_id: `cover-${Date.now()}`,
+          format: "png"
+        },
+        (err, data) => err ? reject(err) : resolve(data)
+      ).end(coverFile.buffer);
+    });
+
+    // SAVE TO DB
     const newTrack = new Track({
       title: req.body.title,
       artist: req.body.artist,
       duration: req.body.duration || 0,
-      
-      // Initial Play Count (Important for Top Charts)
-      playCount: 0, 
+      playCount: 0,
 
-      // Cloudinary Data
       audio: {
-        url: audioFile.path, 
-        public_id: audioFile.filename
+        url: audioResult.secure_url,
+        public_id: audioResult.public_id
       },
       coverImage: {
-        url: coverFile.path,
-        public_id: coverFile.filename
+        url: coverResult.secure_url,
+        public_id: coverResult.public_id
       },
-      // Optional Theme Colors
       theme: {
         primary: req.body.themePrimary || "#ffffff",
         secondary: req.body.themeSecondary || "#000000"
@@ -48,36 +70,48 @@ export const createTrack = async (req, res) => {
     });
 
     await newTrack.save();
-    res.status(201).json(newTrack);
+    return res.status(201).json(newTrack);
+
   } catch (err) {
     console.error("Upload Error:", err);
-    res.status(500).json({ error: "Upload failed" });
+    return res.status(500).json({ error: "Upload failed", details: err.message });
   }
 };
 
-// 3. DELETE TRACK
+
+// import Track from "../models/Track.js";
+// import { cloudinary } from "../middleware/upload.js";
+
 export const deleteTrack = async (req, res) => {
   try {
     const track = await Track.findById(req.params.id);
     if (!track) return res.status(404).json({ error: "Track not found" });
 
-    // Delete assets from Cloudinary
-    if (track.coverImage && track.coverImage.public_id) {
-        await cloudinary.uploader.destroy(track.coverImage.public_id);
-    }
-    if (track.audio && track.audio.public_id) {
-        // Audio uses 'video' resource_type in Cloudinary
-        await cloudinary.uploader.destroy(track.audio.public_id, { resource_type: 'video' });
+    // 1. Delete COVER (Cloudinary treats it as image)
+    if (track.coverImage?.public_id) {
+      await cloudinary.uploader.destroy(track.coverImage.public_id, {
+        resource_type: "image"
+      });
     }
 
-    // Delete from DB
+    // 2. Delete AUDIO (Cloudinary treats audio as video)
+    if (track.audio?.public_id) {
+      await cloudinary.uploader.destroy(track.audio.public_id, {
+        resource_type: "video"
+      });
+    }
+
+    // 3. Remove from DB
     await track.deleteOne();
-    res.json({ message: "Track deleted successfully" });
+
+    return res.json({ message: "Track deleted successfully" });
+
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "Delete failed" });
+    console.error("Delete Track Error:", err);
+    return res.status(500).json({ error: "Delete failed", details: err.message });
   }
 };
+
 
 // 4. INCREMENT PLAY COUNT
 export const playTrack = async (req, res) => {

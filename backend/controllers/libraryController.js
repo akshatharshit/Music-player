@@ -1,44 +1,55 @@
 import Library from '../models/Library.js';
+import { cloudinary } from '../middleware/upload.js'; // <== from our fixed middleware
 
-// 1. CREATE A NEW LIBRARY (Fixed for JSON payloads)
+// 1. CREATE A NEW LIBRARY
 export const createLibrary = async (req, res) => {
   try {
     const { name, creator, description, songs } = req.body;
 
-    // Logic: If you EVER decide to add a cover upload later, keep req.file check
-    // But for now, we'll handle the JSON 'songs' array directly
-    let coverUrl = "https://via.placeholder.com/150"; 
-    if (req.file) {
-      coverUrl = req.file.path; 
+    let coverUrl = "https://via.placeholder.com/150";
+
+    // If the user uploaded a file (FormData)
+    if (req.file && req.file.buffer) {
+      const isAudio = req.file.mimetype.startsWith("audio");
+
+      const result = await new Promise((resolve, reject) => {
+        cloudinary.uploader.upload_stream(
+          {
+            folder: "music-app/library-covers",
+            resource_type: isAudio ? "video" : "image"
+          },
+          (error, data) => {
+            if (error) reject(error);
+            else resolve(data);
+          }
+        ).end(req.file.buffer);
+      });
+
+      coverUrl = result.secure_url;
     }
 
-    // Since we are sending JSON from the frontend, 'songs' is already an array.
-    // We don't need JSON.parse() unless you are using FormData.
     const newLib = new Library({
-      name: name,
+      name,
       creator: creator || "Anonymous",
-      coverUrl: coverUrl,
+      coverUrl,
       description: description || "",
-      songs: Array.isArray(songs) ? songs : [] 
+      songs: Array.isArray(songs) ? songs : []
     });
-    
-    await newLib.save();
-    
-    // Pro-tip: Populate immediately so the frontend has the song data
-    await newLib.populate('songs');
-    
-    res.status(201).json(newLib);
 
+    await newLib.save();
+    await newLib.populate("songs");
+
+    res.status(201).json(newLib);
   } catch (err) {
     console.error("Create Library Error:", err);
     res.status(500).json({ error: "Could not create library" });
   }
 };
 
+
 // 2. GET ALL LIBRARIES
 export const getAllLibraries = async (req, res) => {
   try {
-    // Sorting by visits helps show 'Trending' playlists
     const libs = await Library.find().sort({ visits: -1 });
     res.json(libs);
   } catch (err) {
@@ -51,7 +62,7 @@ export const getLibraryById = async (req, res) => {
   try {
     const library = await Library.findByIdAndUpdate(
       req.params.id,
-      { $inc: { visits: 1 } }, // Tracking popularity
+      { $inc: { visits: 1 } },
       { new: true }
     ).populate('songs'); 
 
@@ -71,7 +82,6 @@ export const addSongToLibrary = async (req, res) => {
     const library = await Library.findById(libraryId);
     if (!library) return res.status(404).json({ error: "Library not found" });
 
-    // Prevent duplicates
     if (library.songs.includes(songId)) {
       return res.status(400).json({ error: "Song already in library" });
     }
@@ -79,6 +89,7 @@ export const addSongToLibrary = async (req, res) => {
     library.songs.push(songId);
     await library.save();
     
+    // Return the updated library with song details
     await library.populate('songs');
     res.json(library);
 

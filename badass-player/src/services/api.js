@@ -7,21 +7,22 @@ export const api = axios.create({
 });
 
 // ==========================================
-// --- TRACKS API CALLS ---
+// TRACKS API
 // ==========================================
 
+// Fetch all tracks
 export const fetchTracks = async () => {
   const response = await api.get('/tracks');
   return response.data;
 };
 
-// 1. FIXED: Changed to PUT and added /play to match your backend trackRoutes.js
+// Increment play count
 export const incrementPlayCount = async (id) => {
-  const response = await api.put(`/tracks/${id}/play`); 
+  const response = await api.put(`/tracks/${id}/play`);
   return response.data;
 };
 
-// 2. FIXED: Changed endpoint to /tracks/add to match your backend
+// Upload a new track (audio + cover)
 export const uploadTrack = async (formData) => {
   const response = await api.post('/tracks/add', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -30,29 +31,33 @@ export const uploadTrack = async (formData) => {
 };
 
 // ==========================================
-// --- LIBRARY API CALLS ---
+// LIBRARY API
 // ==========================================
 
+// Fetch all libraries/playlists
 export const fetchLibraries = async () => {
   const response = await api.get('/libraries');
   return response.data;
 };
 
+// Fetch one library
 export const fetchLibraryDetails = async (id) => {
   const response = await api.get(`/libraries/${id}`);
   return response.data;
 };
 
-// 3. FIXED: Prepared for potential cover image uploads for libraries
-export const createLibrary = async (data) => {
-  // If data is FormData (has a file), use multipart headers, otherwise normal JSON
-  const isFormData = data instanceof FormData;
-  const response = await api.post('/libraries', data, {
+// Create library (supports JSON and FormData)
+export const createLibrary = async (payload) => {
+  const isFormData = payload instanceof FormData;
+
+  const response = await api.post('/libraries', payload, {
     headers: isFormData ? { 'Content-Type': 'multipart/form-data' } : {},
   });
+
   return response.data;
 };
 
+// Add song to library
 export const addSongToLibrary = async (libraryId, songId) => {
   const response = await api.post('/libraries/add-song', { libraryId, songId });
   return response.data;

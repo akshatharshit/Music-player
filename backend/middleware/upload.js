@@ -1,7 +1,6 @@
-import { v2 as cloudinary } from 'cloudinary';
-import { CloudinaryStorage } from 'multer-storage-cloudinary';
-import multer from 'multer';
-import dotenv from 'dotenv';
+import { v2 as cloudinary } from "cloudinary";
+import multer from "multer";
+import dotenv from "dotenv";
 
 dotenv.config();
 
@@ -12,18 +11,39 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-// 2. Config Storage
-const storage = new CloudinaryStorage({
-  cloudinary: cloudinary,
-  params: {
-    folder: 'music-app', 
-    resource_type: 'auto', 
-    allowed_formats: ['jpg', 'png', 'jpeg', 'mp3', 'wav'], 
+// 2. Configure Multer (memory storage)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  fileFilter: (req, file, cb) => {
+    const allowed = ["image/jpeg", "image/png", "audio/mpeg", "audio/wav"];
+    if (!allowed.includes(file.mimetype)) {
+      return cb(new Error("Unsupported file format"), false);
+    }
+    cb(null, true);
   },
 });
 
-const upload = multer({ storage });
+// 3. Attach Cloudinary Upload Helper
+upload.cloudinaryUpload = async (file, folder = "music-app") => {
+  if (!file) throw new Error("No file provided");
 
-// FIX: We need to export both the upload middleware AND the cloudinary config
-export { cloudinary }; // This allows your Controller to delete files later
-export default upload; // This allows your Routes to handle file uploads
+  const isAudio = file.mimetype.startsWith("audio");
+
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload_stream(
+      {
+        resource_type: isAudio ? "video" : "image",
+        folder,
+        format: isAudio ? "mp3" : undefined, // optional
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    ).end(file.buffer);
+  });
+};
+
+// Export both, just like your original middleware
+export { cloudinary };
+export default upload;
