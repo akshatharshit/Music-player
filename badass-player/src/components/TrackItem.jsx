@@ -4,6 +4,7 @@ import { formatTime } from "../utils/formatTime"; // Ensure path matches your pr
 export default function TrackItem({ track, onClick, index }) {
   return (
     <button
+    
       onClick={onClick}
       className="group w-full relative flex items-center gap-4 p-3 rounded-2xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/10 transition-all duration-300 cursor-pointer overflow-hidden active:scale-[0.98] text-left"
     >

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { useSelector, useDispatch } from "react-redux"; // <--- REDUX ADDED
-import { setCurrentTrack } from "../redux/audioSlice";   // <--- ACTION ADDED
+import { useSelector, useDispatch } from "react-redux"; 
+import { setCurrentTrack } from "../redux/audioSlice";  
 import { 
   ArrowLeft, Heart, MoreHorizontal, Volume2, 
   VolumeX, ListMusic, Share2, Maximize2 

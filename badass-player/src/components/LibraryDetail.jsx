@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { getLibraryById, addSong } from "../redux/librarySlice";
-import { getTracks, setCurrentTrack } from "../redux/audioSlice"; // We need all tracks to choose from
+import { getTracks, setCurrentTrack } from "../redux/audioSlice"; 
 import { Play, ArrowLeft, Plus, Search, Music, Clock, X } from "lucide-react";
 
 export default function LibraryDetail() {
