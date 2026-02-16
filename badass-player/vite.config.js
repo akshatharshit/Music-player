@@ -5,5 +5,8 @@ export default defineConfig({
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 1600, // Increases the limit for large libraries
-  }
+  },
+  server:{
+    allowedHosts :["bootlessly-heterolecithal-miya.ngrok-free.dev"],
+  },
 })
